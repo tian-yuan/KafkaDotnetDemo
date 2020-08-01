@@ -13,22 +13,23 @@ using System.Threading;
 
 using Com.Ctrip.Framework.Apollo;
 using Com.Ctrip.Framework.Apollo.Model;
-using Com.Ctrip.Framework.Apollo;
 using Com.Ctrip.Framework.Apollo.Core;
 using Com.Ctrip.Framework.Apollo.Core.Utils;
 using Com.Ctrip.Framework.Apollo.Internals;
-using Com.Ctrip.Framework.Apollo.Model;
 using Com.Ctrip.Framework.Apollo.Spi;
 
 
 namespace KafkaDemo
 {
-    class Program
+    internal class Program
     {
         static void Main(string[] args)
         {
             Console.WriteLine("Start kafka consumer.");
             KafkaConfiguration kafkaConfiguration = new KafkaConfiguration();
+            kafkaConfiguration.ConfigChanged += OnKafkaConfigChanged;
+            //IConfig config = ApolloConfigurationManager.GetAppConfig().ConfigureAwait(false).GetAwaiter().GetResult(); //config instance is singleton for each namespace and is never null
+            //config.ConfigChanged += new ConfigChangeEvent(OnChanged);
             var configuration = new ConsumerConfig
             {
                 GroupId = "test_consumer", // consumer group id (multiple consumers in a group)
@@ -43,7 +44,7 @@ namespace KafkaDemo
             };
 
             const string topic = "one";
-
+            Thread.Sleep(10 * 60 * 1000);
             var kafkaConsumer = new MessageConsumer();
             kafkaConsumer.Listen(ProcessMessage, configuration, topic);
         }
@@ -53,21 +54,18 @@ namespace KafkaDemo
             Console.WriteLine(message.Value);
         }
 
-        public static void WatchConfig()
+        private static void OnChanged(object sender, ConfigChangeEventArgs changeEvent)
         {
-            IConfig config = await ApolloConfigurationManager.GetAppConfig(); //config instance is singleton for each namespace and is never null
-            config.ConfigChanged += new ConfigChangeEvent(OnChanged);
-
-        }
-
-        private void OnChanged(object sender, ConfigChangeEventArgs changeEvent)
-        {
-            Console.WriteLine("Changes for namespace {0}", changeEvent.Namespace);
             foreach (string key in changeEvent.ChangedKeys)
             {
                 ConfigChange change = changeEvent.GetChange(key);
                 Console.WriteLine("Change - key: {0}, oldValue: {1}, newValue: {2}, changeType: {3}", change.PropertyName, change.OldValue, change.NewValue, change.ChangeType);
             }
+        }
+
+        private static void OnKafkaConfigChanged(string kafkaBootstrapServers, string kafkaTopics)
+        {
+            Console.WriteLine("On kafka config changed, " + kafkaBootstrapServers + ", " + kafkaTopics);
         }
     }
 }

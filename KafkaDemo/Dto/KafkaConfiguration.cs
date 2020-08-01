@@ -1,6 +1,7 @@
 ﻿using Config.Net;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,18 +10,14 @@ namespace KafkaDemo.Dto
 {
     class KafkaConfiguration
     {
-        IKafkaSettings kafkaSettiongs;
+        public delegate void OnConfigChanged(string kafkaBootstrapServers, string kafkaTopics);
+        String KafkaBootStrapServers;
+        String KafkaTopics;
         System.Timers.Timer timer;
+        public event OnConfigChanged ConfigChanged;
 
         public KafkaConfiguration()
         {
-            kafkaSettiongs = new ConfigurationBuilder<IKafkaSettings>().Build();
-            kafkaSettiongs.PropertyChanged += (sender, e) =>
-            {
-                Console.WriteLine("Current property name : " + e.PropertyName);
-                Console.WriteLine("Current kafka bootstrap servers config : " + kafkaSettiongs.KafkaBootStrapServers);
-                Console.WriteLine("Current kafka topics config : " + kafkaSettiongs.KafkaTopics);
-            };
             InitTimer();
         }
 
@@ -39,13 +36,18 @@ namespace KafkaDemo.Dto
 
         private void TimerUp(object sender, System.Timers.ElapsedEventArgs e)
         {
-            Console.WriteLine("Begin reload configs.");
-            IKafkaSettings temp = new ConfigurationBuilder<IKafkaSettings>().UseAppConfig().Build();
-            Console.WriteLine("Temp kafka bootstrap servers config : " + temp.KafkaBootStrapServers);
-            Console.WriteLine("Temp kafka topics config : " + temp.KafkaTopics);
-            kafkaSettiongs.KafkaBootStrapServers = temp.KafkaBootStrapServers;
-            kafkaSettiongs.KafkaTopics = temp.KafkaTopics;
+            Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.PerUserRoamingAndLocal);
+            String tempKfkBootstrapservers = config.AppSettings.Settings["KafkaBootStrapServers"].Value;
+            String tempKfkTopic = config.AppSettings.Settings["KafkaTopics"].Value;
+            if (KafkaBootStrapServers != tempKfkBootstrapservers 
+                || KafkaTopics != tempKfkTopic)
+            {
+                Console.WriteLine("Kafka bootstrap servers is changed, old : " + KafkaBootStrapServers + ", new : " + tempKfkBootstrapservers);
+                Console.WriteLine("Kafka topics is changed, old : " + KafkaTopics + ", new : " + tempKfkTopic);
+                KafkaBootStrapServers = tempKfkBootstrapservers;
+                KafkaTopics = tempKfkTopic;
+                ConfigChanged.Invoke(KafkaBootStrapServers, KafkaTopics);
+            }
         }
     }
 }
-
