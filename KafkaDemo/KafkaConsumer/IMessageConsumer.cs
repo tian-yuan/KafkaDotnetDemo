@@ -18,6 +18,6 @@ namespace KafkaDemo.KafkaConsumer
         /// <param name="processMessage">An action to execute when a message is received.</param>
         /// <param name="configuration">The configuration to use when creating an instance of the consumer.</param>
         /// <param name="topic">The topic to listen to.</param>
-        void Listen(Action<Message<Null, string>> processMessage, ConsumerConfig configuration, string topic);
+        void Listen();
     }
 }

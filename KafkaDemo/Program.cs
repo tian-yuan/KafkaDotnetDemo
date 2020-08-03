@@ -23,6 +23,7 @@ namespace KafkaDemo
 {
     internal class Program
     {
+        static Dictionary<string, MessageConsumer> consumerMap = new Dictionary<string, MessageConsumer>();
         static void Main(string[] args)
         {
             Console.WriteLine("Start kafka consumer.");
@@ -33,7 +34,7 @@ namespace KafkaDemo
             var configuration = new ConsumerConfig
             {
                 GroupId = "test_consumer", // consumer group id (multiple consumers in a group)
-                BootstrapServers = "localhost:9092",
+                BootstrapServers = "10.242.202.163:9092",
                 /* Consumers will (by default) automatically signal to Kafka that a message
                    has been consumed. This could be a problem if the consumer crashes after
                    it has told Kafka that the message was successfully consumed - the 
@@ -44,12 +45,12 @@ namespace KafkaDemo
             };
 
             const string topic = "one";
-            Thread.Sleep(10 * 60 * 1000);
+            //Thread.Sleep(10 * 60 * 1000);
             var kafkaConsumer = new MessageConsumer();
-            kafkaConsumer.Listen(ProcessMessage, configuration, topic);
+            kafkaConsumer.Start(ProcessMessage, configuration, topic);
         }
 
-        public static void ProcessMessage(Message<Null, string> message)
+        public static void ProcessMessage(Message<Ignore, string> message)
         {
             Console.WriteLine(message.Value);
         }
@@ -66,6 +67,30 @@ namespace KafkaDemo
         private static void OnKafkaConfigChanged(string kafkaBootstrapServers, string kafkaTopics)
         {
             Console.WriteLine("On kafka config changed, " + kafkaBootstrapServers + ", " + kafkaTopics);
+            var kafkaTopicList = kafkaTopics.Split(',');
+            for (int i = 0; i < kafkaTopicList.Length; i++)
+            {
+                if (!consumerMap.ContainsKey(kafkaTopicList[i]))
+                {
+                    string topic = kafkaTopicList[i];
+                    var configuration = new ConsumerConfig
+                    {
+                        GroupId = "test_consumer" + topic, // consumer group id (multiple consumers in a group)
+                        BootstrapServers = kafkaBootstrapServers,
+                        /* Consumers will (by default) automatically signal to Kafka that a message
+                        has been consumed. This could be a problem if the consumer crashes after
+                        it has told Kafka that the message was successfully consumed - the 
+                        consumer may miss out on processing a specific message.
+                        */
+                        EnableAutoCommit = true,
+                        AutoOffsetReset = AutoOffsetReset.Latest
+                    };
+
+                    var kafkaConsumer = new MessageConsumer();
+                    kafkaConsumer.Start(ProcessMessage, configuration, topic);
+                    consumerMap.Add(topic, kafkaConsumer);
+                }
+            }
         }
     }
 }
